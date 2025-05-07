@@ -92,35 +92,142 @@ router.post('/report-by-user', authMiddleware, roleMiddleware('admin'), async (r
       acc[categoryName].responses.push({
         question: response.surveyId.question,
         answer: response.answer,
-        score: response.score,
+        score: response.score ?? 0,
       });
-      acc[categoryName].score += response.score;
+      acc[categoryName].score += response.score ?? 0;
       acc[categoryName].total += 1;
       return acc;
     }, {});
     const totalScore = Object.values(groupedResponses).reduce((sum, cat) => sum + cat.score, 0);
     const totalPossible = Object.values(groupedResponses).reduce((sum, cat) => sum + cat.total, 0);
+    const percentage = totalPossible > 0 ? ((totalScore / totalPossible) * 100).toFixed(2) : 0;
     const htmlContent = `
       <html>
         <head>
           <style>
-            body { font-family: 'Inter', sans-serif; color: #333; background-color: #f4f4f4; padding: 20px; }
-            .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            h1 { color: #2563eb; text-align: center; }
-            h2 { color: #16a34a; margin-top: 20px; }
-            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #2563eb; color: #fff; }
-            .summary { font-weight: bold; font-size: 16px; margin-top: 20px; text-align: center; }
-            .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #777; }
+            body {
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              color: #333;
+              background-color: #f4f4f4;
+              padding: 20px;
+              margin: 0;
+            }
+            .container {
+              max-width: 600px;
+              margin: 0 auto;
+              background: #ffffff;
+              border-radius: 12px;
+              padding: 20px;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            }
+            h1 {
+              color: #2563eb;
+              text-align: center;
+              font-size: 28px;
+              margin-bottom: 20px;
+            }
+            .summary-card {
+              background: #ffffff;
+              border: 1px solid #e5e7eb;
+              border-radius: 16px;
+              padding: 24px;
+              margin-bottom: 24px;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            }
+            .summary-card h2 {
+              font-size: 24px;
+              font-weight: 800;
+              color: #1f2937;
+              text-align: center;
+              margin-bottom: 24px;
+            }
+            .summary-item {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 12px 16px;
+              border-radius: 8px;
+              margin-bottom: 12px;
+            }
+            .summary-item.blue {
+              background-color: #dbeafe;
+            }
+            .summary-item.green {
+              background-color: #dcfce7;
+            }
+            .summary-item.purple {
+              background-color: #f3e8ff;
+            }
+            .summary-item .label {
+              font-size: 18px;
+              color: #374151;
+            }
+            .summary-item .value {
+              font-size: 18px;
+              font-weight: 700;
+            }
+            .summary-item.blue .value {
+              color: #2563eb;
+            }
+            .summary-item.green .value {
+              color: #16a34a;
+            }
+            .summary-item.purple .value {
+              color: #9333ea;
+            }
+            h3 {
+              color: #16a34a;
+              font-size: 20px;
+              margin-top: 20px;
+              margin-bottom: 10px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 10px 0;
+            }
+            th, td {
+              border: 1px solid #e5e7eb;
+              padding: 10px;
+              text-align: left;
+              font-size: 14px;
+            }
+            th {
+              background-color: #2563eb;
+              color: #ffffff;
+              font-weight: bold;
+            }
+            td {
+              background-color: #f9fafb;
+            }
+            .footer {
+              text-align: center;
+              margin-top: 20px;
+              font-size: 12px;
+              color: #6b7280;
+            }
           </style>
         </head>
         <body>
           <div class="container">
             <h1>Survey Report for ${user.email}</h1>
-            <p class="summary">Total Score: ${totalScore} / ${totalPossible}</p>
+            <div class="summary-card">
+              <h2>Your Performance</h2>
+              <div class="summary-item blue">
+                <span class="label">Gained Marks:</span>
+                <span class="value">${totalScore}</span>
+              </div>
+              <div class="summary-item green">
+                <span class="label">Total Marks:</span>
+                <span class="value">${totalPossible}</span>
+              </div>
+              <div class="summary-item purple">
+                <span class="label">Percentage:</span>
+                <span class="value">${percentage}%</span>
+              </div>
+            </div>
             ${Object.entries(groupedResponses).map(([category, data]) => `
-              <h2>${category}</h2>
+              <h3>${category}</h3>
               <p>Score: ${data.score} / ${data.total}</p>
               <table>
                 <thead>
@@ -131,7 +238,7 @@ router.post('/report-by-user', authMiddleware, roleMiddleware('admin'), async (r
                   </tr>
                 </thead>
                 <tbody>
-                  ${data.responses.map((resp, index) => `
+                  ${data.responses.map((resp) => `
                     <tr>
                       <td>${resp.question}</td>
                       <td>${resp.answer}</td>
@@ -142,7 +249,7 @@ router.post('/report-by-user', authMiddleware, roleMiddleware('admin'), async (r
               </table>
             `).join('')}
             <div class="footer">
-              <p>Generated by SurveyPro | Thank you for your participation!</p>
+              <p>Generated by Assement | Thank you for your participation!</p>
             </div>
           </div>
         </body>
@@ -154,5 +261,4 @@ router.post('/report-by-user', authMiddleware, roleMiddleware('admin'), async (r
     res.status(500).json({ message: err.message });
   }
 });
-
 module.exports = router;

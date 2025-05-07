@@ -15,15 +15,17 @@ router.get('/', authMiddleware, async (req, res) => {
 
 // Create a survey (Admin only)
 router.post('/', authMiddleware, roleMiddleware('admin'), async (req, res) => {
-  const { question, options, categoryId } = req.body;
+  const { question, options, categoryId, correctOption } = req.body;
   try {
-    if (!question || !options || !categoryId) {
-      return res.status(400).json({ message: 'Question, options, and categoryId are required' });
+    if (!question || !options || !categoryId || !correctOption) {
+      return res.status(400).json({ message: 'All fields are required' });
     }
-    const survey = new Survey({ question, options, categoryId });
+    if (!options.includes(correctOption)) {
+      return res.status(400).json({ message: 'Correct option must be one of the provided options' });
+    }
+    const survey = new Survey({ question, options, categoryId, correctOption });
     await survey.save();
-    const populatedSurvey = await Survey.findById(survey._id).populate('categoryId', 'name');
-    res.status(201).json(populatedSurvey);
+    res.status(201).json(survey);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
