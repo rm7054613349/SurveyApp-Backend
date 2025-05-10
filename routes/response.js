@@ -125,7 +125,6 @@ router.post('/report-by-user', authMiddleware, roleMiddleware('admin'), async (r
     const totalPossible = Object.values(groupedResponses).reduce((sum, cat) => sum + cat.total, 0);
     const percentage = totalPossible > 0 ? ((totalScore / totalPossible) * 100).toFixed(2) : 0;
 
-    
     // Generate HTML content
     const htmlContent = `
       <html>
@@ -281,7 +280,7 @@ router.post('/report-by-user', authMiddleware, roleMiddleware('admin'), async (r
         <body>
           <div class="container">
             <div class="header">
-              <h1>Survey Report for ${sanitizedEmail}</h1>
+              <h1>Survey Report for ${user.email}</h1>
             </div>
             <div class="summary-card">
               <h2>Your Performance</h2>
