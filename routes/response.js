@@ -66,41 +66,67 @@ router.get('/my-responses', authMiddleware, async (req, res) => {
 });
 
 // Send report by user (Admin only)
+// Send report by user (Admin only)
 router.post('/report-by-user', authMiddleware, roleMiddleware('admin'), async (req, res) => {
   const { userId } = req.body;
   try {
+    // Validate input
     if (!userId) {
       return res.status(400).json({ message: 'User ID is required' });
     }
+
+    // Fetch user
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    // Sanitize email for HTML
+    const sanitizedEmail = sanitizeHtml(user.email, {
+      allowedTags: [],
+      allowedAttributes: {},
+    });
+
+    // Fetch responses with populated survey and category
     const responses = await Response.find({ userId })
       .populate({
         path: 'surveyId',
         populate: { path: 'categoryId', select: 'name' },
       });
+
     if (!responses.length) {
       return res.status(404).json({ message: 'No responses found for this user' });
     }
+
+    // Group responses by category
     const groupedResponses = responses.reduce((acc, response) => {
-      const categoryName = response.surveyId.categoryId?.name || 'Uncategorized';
+      if (!response.surveyId || !response.surveyId._id) {
+        return acc; // Skip invalid responses
+      }
+      const categoryName = response.surveyId.categoryId?.name
+        ? sanitizeHtml(response.surveyId.categoryId.name)
+        : 'Uncategorized';
       if (!acc[categoryName]) {
         acc[categoryName] = { score: 0, total: 0, responses: [] };
       }
       acc[categoryName].responses.push({
-        question: response.surveyId.question,
-        answer: response.answer,
+        question: sanitizeHtml(response.surveyId.question || 'N/A'),
+        answer: sanitizeHtml(response.answer || 'No answer'),
+        correctOption: sanitizeHtml(response.surveyId.correctOption || 'N/A'),
         score: response.score ?? 0,
       });
       acc[categoryName].score += response.score ?? 0;
       acc[categoryName].total += 1;
       return acc;
     }, {});
+
+    // Calculate totals
     const totalScore = Object.values(groupedResponses).reduce((sum, cat) => sum + cat.score, 0);
     const totalPossible = Object.values(groupedResponses).reduce((sum, cat) => sum + cat.total, 0);
     const percentage = totalPossible > 0 ? ((totalScore / totalPossible) * 100).toFixed(2) : 0;
+
+    
+    // Generate HTML content
     const htmlContent = `
       <html>
         <head>
@@ -111,20 +137,24 @@ router.post('/report-by-user', authMiddleware, roleMiddleware('admin'), async (r
               background-color: #f4f4f4;
               padding: 20px;
               margin: 0;
+              line-height: 1.6;
             }
             .container {
-              max-width: 600px;
+              max-width: 700px;
               margin: 0 auto;
               background: #ffffff;
               border-radius: 12px;
-              padding: 20px;
+              padding: 24px;
               box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             }
-            h1 {
-              color: #2563eb;
+            .header {
               text-align: center;
+              margin-bottom: 24px;
+            }
+            .header h1 {
+              color: #2563eb;
               font-size: 28px;
-              margin-bottom: 20px;
+              margin: 0;
             }
             .summary-card {
               background: #ffffff;
@@ -133,6 +163,11 @@ router.post('/report-by-user', authMiddleware, roleMiddleware('admin'), async (r
               padding: 24px;
               margin-bottom: 24px;
               box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+              animation: fadeIn 1s ease-out;
+            }
+            @keyframes fadeIn {
+              from { opacity: 0; transform: translateY(20px); }
+              to { opacity: 1; transform: translateY(0); }
             }
             .summary-card h2 {
               font-size: 24px;
@@ -148,16 +183,15 @@ router.post('/report-by-user', authMiddleware, roleMiddleware('admin'), async (r
               padding: 12px 16px;
               border-radius: 8px;
               margin-bottom: 12px;
+              animation: slideIn 0.5s ease-out;
             }
-            .summary-item.blue {
-              background-color: #dbeafe;
+            @keyframes slideIn {
+              from { opacity: 0; transform: translateX(-20px); }
+              to { opacity: 1; transform: translateX(0); }
             }
-            .summary-item.green {
-              background-color: #dcfce7;
-            }
-            .summary-item.purple {
-              background-color: #f3e8ff;
-            }
+            .summary-item.blue { background-color: #dbeafe; }
+            .summary-item.green { background-color: #dcfce7; }
+            .summary-item.purple { background-color: #f3e8ff; }
             .summary-item .label {
               font-size: 18px;
               color: #374151;
@@ -165,30 +199,44 @@ router.post('/report-by-user', authMiddleware, roleMiddleware('admin'), async (r
             .summary-item .value {
               font-size: 18px;
               font-weight: 700;
+              animation: pulse 1.5s infinite;
             }
-            .summary-item.blue .value {
-              color: #2563eb;
+            @keyframes pulse {
+              0% { transform: scale(1); }
+              50% { transform: scale(1.05); }
+              100% { transform: scale(1); }
             }
-            .summary-item.green .value {
-              color: #16a34a;
+            .summary-item.blue .value { color: #2563eb; }
+            .summary-item.green .value { color: #16a34a; }
+            .summary-item.purple .value { color: #9333ea; }
+            .category-section {
+              margin-bottom: 24px;
+              animation: fadeIn 1.5s ease-out;
             }
-            .summary-item.purple .value {
-              color: #9333ea;
-            }
-            h3 {
+            .category-section h3 {
               color: #16a34a;
               font-size: 20px;
-              margin-top: 20px;
-              margin-bottom: 10px;
+              margin-bottom: 12px;
+            }
+            .category-section p {
+              font-size: 16px;
+              color: #374151;
+              margin-bottom: 12px;
+            }
+            .table-container {
+              max-width: 100%;
+              overflow-x: auto;
             }
             table {
               width: 100%;
               border-collapse: collapse;
-              margin: 10px 0;
+              margin: 12px 0;
+              background: #f9fafb;
+              min-width: 500px;
             }
             th, td {
               border: 1px solid #e5e7eb;
-              padding: 10px;
+              padding: 12px;
               text-align: left;
               font-size: 14px;
             }
@@ -198,67 +246,108 @@ router.post('/report-by-user', authMiddleware, roleMiddleware('admin'), async (r
               font-weight: bold;
             }
             td {
+              background-color: #ffffff;
+            }
+            tr:nth-child(even) td {
               background-color: #f9fafb;
             }
             .footer {
               text-align: center;
-              margin-top: 20px;
+              margin-top: 24px;
               font-size: 12px;
               color: #6b7280;
+              padding-top: 16px;
+              border-top: 1px solid #e5e7eb;
+            }
+            .footer a {
+              color: #2563eb;
+              text-decoration: none;
+              transition: color 0.3s ease;
+            }
+            .footer a:hover {
+              color: #1e40af;
+            }
+            @media (max-width: 600px) {
+              .container { padding: 16px; max-width: 100%; }
+              .header h1 { font-size: 24px; }
+              .summary-card h2 { font-size: 20px; }
+              .summary-item .label, .summary-item .value { font-size: 16px; }
+              .category-section h3 { font-size: 18px; }
+              th, td { font-size: 12px; padding: 8px; }
+              table { min-width: 100%; }
             }
           </style>
         </head>
         <body>
           <div class="container">
-            <h1>Survey Report for ${user.email}</h1>
+            <div class="header">
+              <h1>Survey Report for ${sanitizedEmail}</h1>
+            </div>
             <div class="summary-card">
               <h2>Your Performance</h2>
               <div class="summary-item blue">
                 <span class="label">Gained Marks:</span>
-                <span class="value"> ${totalScore}</span>
+                <span class="value">${totalScore}</span>
               </div>
               <div class="summary-item green">
                 <span class="label">Total Marks:</span>
-                <span class="value"> ${totalPossible}</span>
+                <span class="value">${totalPossible}</span>
               </div>
               <div class="summary-item purple">
                 <span class="label">Percentage:</span>
-                <span class="value"> ${percentage}%</span>
+                <span class="value">${percentage}%</span>
               </div>
             </div>
-            ${Object.entries(groupedResponses).map(([category, data]) => `
-              <h3>${category}</h3>
-              <p>Score: ${data.score} / ${data.total}</p>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Question</th>
-                    <th>Answer</th>
-                    <th>Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${data.responses.map((resp) => `
-                    <tr>
-                      <td>${resp.question}</td>
-                      <td>${resp.answer}</td>
-                      <td>${resp.score}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            `).join('')}
+            <section class="categories">
+              ${Object.entries(groupedResponses).map(([category, data]) => `
+                <div class="category-section">
+                  <h3>${sanitizeHtml(category)}</h3>
+                  <p>Score: ${data.score} / ${data.total}</p>
+                  <div class="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Question</th>
+                          <th>Answer</th>
+                          <th>Correct Answer</th>
+                          <th>Score</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${data.responses.map((resp) => `
+                          <tr>
+                            <td>${resp.question}</td>
+                            <td>${resp.answer}</td>
+                            <td>${resp.correctOption}</td>
+                            <td>${resp.score}</td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              `).join('')}
+            </section>
             <div class="footer">
-              <p>Generated by Assement | Thank you for your participation!</p>
+              <p>Generated by SurveyPro Assessment</p>
+              <p><a href="https://surveypro.com">Visit SurveyPro</a> | Contact us at <a href="mailto:support@surveypro.com">support@surveypro.com</a></p>
             </div>
           </div>
         </body>
       </html>
     `;
-    await sendEmail(user.email, 'Your SurveyPro Report', null, htmlContent);
-    res.json({ message: 'Report sent successfully' });
+
+    // Send email
+    try {
+      await sendEmail(sanitizedEmail, 'Your SurveyPro Report', null, htmlContent);
+      res.json({ message: 'Report sent successfully' });
+    } catch (emailErr) {
+      console.error('Email sending error:', emailErr);
+      res.status(500).json({ message: 'Failed to send email' });
+    }
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Error generating report:', err);
+    res.status(500).json({ message: err.message || 'Internal server error' });
   }
 });
 module.exports = router;
