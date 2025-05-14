@@ -6,28 +6,28 @@ const { authMiddleware, roleMiddleware } = require('../middleware/authMiddleware
 // Get all categories
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const categories = await Category.find();
+    const categories = await Category.find().populate('subsectionId');
     res.json(categories);
   } catch (err) {
+    console.error('Error fetching categories:', err);
     res.status(500).json({ message: err.message });
   }
 });
 
-// Create a category (Admin only)
+// Create a new category (Admin only)
 router.post('/', authMiddleware, roleMiddleware('admin'), async (req, res) => {
-  const { name } = req.body;
+  const { name, subsectionId } = req.body;
+  console.log('POST /category called with body:', req.body);
   try {
-    if (!name) {
-      return res.status(400).json({ message: 'Category name is required' });
+    if (!name || !subsectionId) {
+      return res.status(400).json({ message: 'Name and subsectionId are required' });
     }
-    const existingCategory = await Category.findOne({ name });
-    if (existingCategory) {
-      return res.status(400).json({ message: 'Category already exists' });
-    }
-    const category = new Category({ name });
+    const category = new Category({ name, subsectionId });
     await category.save();
+    console.log('Category created:', category);
     res.status(201).json(category);
   } catch (err) {
+    console.error('Error creating category:', err);
     res.status(500).json({ message: err.message });
   }
 });
