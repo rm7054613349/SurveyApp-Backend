@@ -1,0 +1,11 @@
+Task For Implementation -
+
+1- Jo bhi Test Dikh rhe hai user ko usme two sections honge first is Pre Test and sencond is Post Test.
+2- Dono me Ak timing set hogi Ki ap ak perticuler timing me hi iss test ko compleate krr payeng.
+3- If Pre test clear hoga then uske bad hi ap post test de apyenge.
+4- Test se phle Employee dashBoard me ak Pre Trainings ka section ads hoga Jisme Ham Kuchh documents and Kuchh Lectures denge 
+taki employee ready ho paye for test .
+5- Sare Log login and signup na krr Paye Jiski Email ham apne system me Enter kre kewal whi login krr paye.
+6- Get all Emails from Office.
+7- Nav bar ko responsiv krna hai. jaise hi mobile phone ke liye aye vaise hi ak icon me converted ho jaye and uske besi per w
+work ho

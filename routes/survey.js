@@ -5,6 +5,7 @@ const { authMiddleware, roleMiddleware } = require('../middleware/authMiddleware
 const mongoose = require('mongoose'); // Added import
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
 // Get all surveys
 router.get('/', authMiddleware, async (req, res) => {
@@ -32,9 +33,73 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'text/plain'];
+    // const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'text/plain'];
+    const allowedTypes = [
+  // Images
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'image/bmp',
+  'image/tiff',
+  'image/heic',
+  'image/heif',
+
+  // Videos
+  'video/mp4',
+  'video/mpeg',
+  'video/webm',
+  'video/ogg',
+  'video/quicktime',
+  'video/x-msvideo',
+  'video/x-matroska',
+
+  // Audio
+  'audio/mpeg',
+  'audio/wav',
+  'audio/ogg',
+  'audio/mp4',
+  'audio/webm',
+  'audio/aac',
+  'audio/x-wav',
+
+  // Documents
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',       // .xlsx
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+  'text/plain',
+  'text/csv',
+  'text/html',
+  'application/json',
+  'application/rtf',
+  'application/xml',
+
+  // Archives
+  'application/zip',
+  'application/x-rar-compressed',
+  'application/x-7z-compressed',
+  'application/x-tar',
+  'application/gzip',
+
+  // Code files
+  'application/javascript',
+  'application/x-python-code',
+  'application/x-java',
+  'text/css',
+  'text/markdown',
+  'text/x-c',
+  'text/x-c++',
+  'text/x-java-source'
+];
+
+
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -44,74 +109,66 @@ const upload = multer({
 });
 
 // Create a new survey
-router.post('/', authMiddleware, roleMiddleware('admin'), upload.single('file'), async (req, res) => {
+router.post('/', upload.single('file'), async (req, res) => {
   try {
-    const { question, options, categoryId, sectionId, subsectionId, questionType, correctOption, scoringType, maxScore } = req.body;
-    console.log('POST /api/survey called with body:', req.body, 'file:', req.file);
+    const { question, questionType, categoryId, sectionId, subsectionId, maxScore } = req.body;
+    
+    console.log('Received survey data:', { question, questionType, categoryId, sectionId, subsectionId, maxScore, file: req.file });
 
-    // Validate required fields
-    const missingFields = [];
-    if (!question) missingFields.push('question');
-    if (!categoryId) missingFields.push('categoryId');
-    if (!sectionId) missingFields.push('sectionId');
-    if (!subsectionId) missingFields.push('subsectionId');
-    if (!questionType) missingFields.push('questionType');
-    if (!maxScore) missingFields.push('maxScore');
-
-    if (missingFields.length > 0) {
-      console.error('Missing required fields:', missingFields);
-      return res.status(400).json({ message: `Required fields are missing: ${missingFields.join(', ')}` });
+    if (!question || !questionType || !categoryId || !sectionId || !subsectionId || !maxScore) {
+      console.error('Missing required fields:', req.body);
+      return res.status(400).json({ message: 'All required fields must be provided' });
     }
 
-    // Validate ObjectIds
-    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-      console.error('Invalid categoryId:', categoryId);
-      return res.status(400).json({ message: 'Invalid categoryId' });
-    }
-    if (!mongoose.Types.ObjectId.isValid(sectionId)) {
-      console.error('Invalid sectionId:', sectionId);
-      return res.status(400).json({ message: 'Invalid sectionId' });
-    }
-    if (!mongoose.Types.ObjectId.isValid(subsectionId)) {
-      console.error('Invalid subsectionId:', subsectionId);
-      return res.status(400).json({ message: 'Invalid subsectionId' });
-    }
-
-    // Validate file for file-upload
     if (questionType === 'file-upload' && !req.file) {
-      console.error('File is required for file-upload question type');
-      return res.status(400).json({ message: 'File is required for file-upload question type' });
+      console.error('File required for file-upload survey');
+      return res.status(400).json({ message: 'File required for file-upload survey' });
     }
 
-    // Validate maxScore
-    const parsedMaxScore = parseInt(maxScore, 10);
-    if (isNaN(parsedMaxScore) || parsedMaxScore <= 0) {
-      console.error('Invalid maxScore:', maxScore);
-      return res.status(400).json({ message: 'Max score must be a positive number' });
+    let fileUrl = null;
+    if (questionType === 'file-upload' && req.file) {
+      fileUrl = req.file.filename;
+      console.log('File uploaded:', {
+        originalName: req.file.originalname,
+        savedAs: fileUrl,
+        path: req.file.path,
+        size: req.file.size,
+      });
+      // Verify file exists
+      if (!fs.existsSync(req.file.path)) {
+        console.error('Uploaded file not found on disk:', req.file.path);
+        return res.status(500).json({ message: 'File upload failed' });
+      }
     }
 
     const survey = new Survey({
       question,
-      options: options ? JSON.parse(options) : undefined,
+      questionType,
       categoryId,
       sectionId,
       subsectionId,
-      questionType,
-      correctOption,
-      scoringType,
-      maxScore: parsedMaxScore,
-      fileUrl: req.file ? req.file.path : undefined,
+      maxScore,
+      fileUrl,
     });
 
     await survey.save();
-    console.log('Survey saved:', survey);
+    console.log('Survey created:', survey);
     res.status(201).json(survey);
   } catch (err) {
-    console.error('Error in survey creation:', {
-      message: err.message,
-      stack: err.stack,
-    });
-    res.status(500).json({ message: err.message || 'Server error during survey creation' });
+    console.error('Survey creation error:', err);
+    res.status(400).json({ message: 'Survey creation failed', error: err.message });
+  }
+});
+
+// GET /api/survey/subsection/:subsectionId - Get surveys by subsection
+router.get('/subsection/:subsectionId', async (req, res) => {
+  try {
+    const surveys = await Survey.find({ subsectionId: req.params.subsectionId });
+    console.log(`Fetched ${surveys.length} surveys for subsection ${req.params.subsectionId}`);
+    res.json(surveys);
+  } catch (err) {
+    console.error('Error fetching surveys:', err);
+    res.status(500).json({ message: 'Error fetching surveys', error: err.message });
   }
 });
 
