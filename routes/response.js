@@ -9,101 +9,101 @@ const { calculateHardScore } = require('../utils/scoring');
 const { sendEmail } = require('../utils/sendEmail');
 
 // Submit responses for a subsection
-router.post('/submit/:subsectionId', authMiddleware, async (req, res) => {
-  try {
-    const { responses } = req.body;
-    const subsectionId = req.params.subsectionId;
-    const userId = req.user.id;
+// router.post('/submit/:subsectionId', authMiddleware, async (req, res) => {
+//   try {
+//     const { responses } = req.body;
+//     const subsectionId = req.params.subsectionId;
+//     const userId = req.user.id;
 
-    if (!responses || !Array.isArray(responses)) {
-      return res.status(400).json({ message: 'Invalid responses' });
-    }
+//     if (!responses || !Array.isArray(responses)) {
+//       return res.status(400).json({ message: 'Invalid responses' });
+//     }
 
-    let totalScore = 0;
-    let maxPossibleScore = 0;
-    const responseDetails = [];
+//     let totalScore = 0;
+//     let maxPossibleScore = 0;
+//     const responseDetails = [];
 
-    const surveys = await Survey.find({ subsection: subsectionId });
-    for (const survey of surveys) {
-      const resp = responses.find(r => r.surveyId === survey._id.toString());
-      let score = 0;
-      let answer = '';
+//     const surveys = await Survey.find({ subsection: subsectionId });
+//     for (const survey of surveys) {
+//       const resp = responses.find(r => r.surveyId === survey._id.toString());
+//       let score = 0;
+//       let answer = '';
 
-      if (resp) {
-        if (survey.questionType === 'multiple-choice') {
-          if (!survey.options.includes(resp.answer)) {
-            return res.status(400).json({ message: `Invalid answer for survey ${survey._id}` });
-          }
-          if (survey.scoringType === 'hard') {
-            score = calculateHardScore(resp.answer, survey.correctOption, survey.maxScore);
-          } else {
-            score = resp.answer === survey.correctOption ? survey.maxScore : 0;
-          }
-          answer = resp.answer;
-        } else if (survey.questionType === 'descriptive') {
-          score = survey.maxScore; // Placeholder for manual scoring
-          answer = resp.answer;
-        } else if (survey.questionType === 'file-upload') {
-          if (!resp.fileUrl) {
-            return res.status(400).json({ message: `File URL required for survey ${survey._id}` });
-          }
-          score = survey.maxScore; // Placeholder for manual scoring
-          answer = resp.fileUrl;
-        }
-      }
+//       if (resp) {
+//         if (survey.questionType === 'multiple-choice') {
+//           if (!survey.options.includes(resp.answer)) {
+//             return res.status(400).json({ message: `Invalid answer for survey ${survey._id}` });
+//           }
+//           if (survey.scoringType === 'hard') {
+//             score = calculateHardScore(resp.answer, survey.correctOption, survey.maxScore);
+//           } else {
+//             score = resp.answer === survey.correctOption ? survey.maxScore : 0;
+//           }
+//           answer = resp.answer;
+//         } else if (survey.questionType === 'descriptive') {
+//           score = survey.maxScore; // Placeholder for manual scoring
+//           answer = resp.answer;
+//         } else if (survey.questionType === 'file-upload') {
+//           if (!resp.fileUrl) {
+//             return res.status(400).json({ message: `File URL required for survey ${survey._id}` });
+//           }
+//           score = survey.maxScore; // Placeholder for manual scoring
+//           answer = resp.fileUrl;
+//         }
+//       }
 
-      totalScore += score;
-      maxPossibleScore += survey.maxScore;
+//       totalScore += score;
+//       maxPossibleScore += survey.maxScore;
 
-      const newResponse = new Response({
-        user: userId,
-        survey: survey._id,
-        subsection: subsectionId,
-        answer: survey.questionType !== 'file-upload' ? answer : null,
-        fileUrl: survey.questionType === 'file-upload' ? answer : null,
-        score,
-      });
-      await newResponse.save();
+//       const newResponse = new Response({
+//         user: userId,
+//         survey: survey._id,
+//         subsection: subsectionId,
+//         answer: survey.questionType !== 'file-upload' ? answer : null,
+//         fileUrl: survey.questionType === 'file-upload' ? answer : null,
+//         score,
+//       });
+//       await newResponse.save();
 
-      responseDetails.push({
-        question: survey.question,
-        userAnswer: answer || 'Not answered',
-        correctAnswer: survey.correctOption || 'N/A',
-        score,
-        maxScore: survey.maxScore,
-      });
-    }
+//       responseDetails.push({
+//         question: survey.question,
+//         userAnswer: answer || 'Not answered',
+//         correctAnswer: survey.correctOption || 'N/A',
+//         score,
+//         maxScore: survey.maxScore,
+//       });
+//     }
 
     // Badge assignment
-    const percentage = (totalScore / maxPossibleScore) * 100;
-    if (percentage >= 70) {
-      const user = await User.findById(userId);
-      const subsections = await Subsection.find().sort('order');
-      const currentSubsection = await Subsection.findById(subsectionId);
-      const currentOrder = currentSubsection.order;
+//     const percentage = (totalScore / maxPossibleScore) * 100;
+//     if (percentage >= 70) {
+//       const user = await User.findById(userId);
+//       const subsections = await Subsection.find().sort('order');
+//       const currentSubsection = await Subsection.findById(subsectionId);
+//       const currentOrder = currentSubsection.order;
 
-      if (currentOrder === 1 && !user.badges.includes('bronze')) {
-        user.badges.push('bronze');
-        await user.save();
-      } else if (currentOrder === 2 && !user.badges.includes('silver')) {
-        user.badges.push('silver');
-        await user.save();
-      } else if (currentOrder === 3 && !user.badges.includes('gold')) {
-        user.badges.push('gold');
-        await user.save();
-      }
-    }
+//       if (currentOrder === 1 && !user.badges.includes('bronze')) {
+//         user.badges.push('bronze');
+//         await user.save();
+//       } else if (currentOrder === 2 && !user.badges.includes('silver')) {
+//         user.badges.push('silver');
+//         await user.save();
+//       } else if (currentOrder === 3 && !user.badges.includes('gold')) {
+//         user.badges.push('gold');
+//         await user.save();
+//       }
+//     }
 
-    res.status(201).json({
-      message: 'Responses submitted',
-      totalScore,
-      maxPossibleScore,
-      responseDetails,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+//     res.status(201).json({
+//       message: 'Responses submitted',
+//       totalScore,
+//       maxPossibleScore,
+//       responseDetails,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// });
 
 // Get scores for a user
 router.get('/score/:userId', authMiddleware, async (req, res) => {
@@ -167,30 +167,131 @@ router.get('/badges/:userId', authMiddleware, async (req, res) => {
 });
 
 // Get responses for ThankYou page
+// router.get('/subsection/:subsectionId', authMiddleware, async (req, res) => {
+//   try {
+//     const responses = await Response.find({
+//       user: req.user.id,
+//       subsection: req.params.subsectionId,
+//     }).populate('survey');
+
+//     let totalScore = 0;
+//     let maxPossibleScore = 0;
+//     const responseDetails = responses.map(r => {
+//       totalScore += r.score;
+//       maxPossibleScore += r.survey.maxScore;
+//       return {
+//         question: r.survey.question,
+//         userAnswer: r.answer || r.fileUrl || 'Not answered',
+//         correctAnswer: r.survey.correctOption || 'N/A',
+//         score: r.score,
+//         maxScore: r.survey.maxScore,
+//       };
+//     });
+
+//     res.json({ totalScore, maxPossibleScore, responseDetails });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// });
+
+
+// router.get('/subsection/:subsectionId', authMiddleware, async (req, res) => {
+//   try {
+//     const responses = await Response.find({ subsection: req.params.subsectionId })
+//       .populate({
+//         path: 'surveyId',
+//         populate: { path: 'categoryId' }
+//       })
+//       .populate('user');
+//     console.log(`Fetched responses for subsection ${req.params.subsectionId}:`, {
+//       count: responses.length,
+//       responses: responses.map(r => ({
+//         _id: r._id,
+//         surveyId: r.surveyId?._id,
+//         question: r.surveyId?.question,
+//         answer: r.answer,
+//         correctOption: r.surveyId?.correctOption
+//       }))
+//     });
+//     res.json(responses || []);
+//   } catch (error) {
+//     console.error('Error fetching responses:', error);
+//     res.status(500).json({ message: 'Server error' });
+//   }
+// });
+
 router.get('/subsection/:subsectionId', authMiddleware, async (req, res) => {
   try {
-    const responses = await Response.find({
-      user: req.user.id,
-      subsection: req.params.subsectionId,
-    }).populate('survey');
+    const responses = await Response.find({ subsection: req.params.subsectionId })
+      .populate({
+        path: 'survey',
+        populate: { path: 'categoryId' }
+      })
+      .populate('user');
 
-    let totalScore = 0;
-    let maxPossibleScore = 0;
-    const responseDetails = responses.map(r => {
-      totalScore += r.score;
-      maxPossibleScore += r.survey.maxScore;
-      return {
-        question: r.survey.question,
-        userAnswer: r.answer || r.fileUrl || 'Not answered',
-        correctAnswer: r.survey.correctOption || 'N/A',
-        score: r.score,
-        maxScore: r.survey.maxScore,
-      };
+    console.log(`Fetched responses for subsection ${req.params.subsectionId}:`, {
+      count: responses.length,
+      responses: responses.map(r => ({
+        _id: r._id,
+        survey: r.survey?._id,
+        question: r.survey?.question,
+        answer: r.answer,
+        correctOption: r.survey?.correctOption,
+        categoryId: r.survey?.categoryId?._id
+      }))
     });
 
-    res.json({ totalScore, maxPossibleScore, responseDetails });
+    res.json(responses || []);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error fetching responses:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.post('/submit/:subsectionId', authMiddleware, async (req, res) => {
+  try {
+    const { responses } = req.body;
+    const subsectionId = req.params.subsectionId;
+    const userId = req.user.id;
+
+    if (!Array.isArray(responses)) {
+      console.error('Responses must be an array:', responses);
+      return res.status(400).json({ message: 'Responses must be an array' });
+    }
+
+    // Validate each response has a survey field
+    const invalidResponses = responses.filter(response => !response.survey);
+    if (invalidResponses.length > 0) {
+      console.error('Invalid responses missing survey:', invalidResponses);
+      return res.status(400).json({ message: 'All responses must include a survey ID' });
+    }
+
+    const savedResponses = await Promise.all(
+      responses.map(async response => {
+        const newResponse = new Response({
+          user: userId,
+          survey: response.survey,
+          subsection: subsectionId,
+          answer: response.answer,
+          score: response.answer && response.survey // Ensure survey exists
+            ? response.answer === response.correctOption ? 1 : 0
+            : 0
+        });
+        return await newResponse.save();
+      })
+    );
+
+    await Response.populate(savedResponses, [
+      { path: 'survey', populate: { path: 'categoryId' } },
+      { path: 'user' }
+    ]);
+
+    console.log(`Saved ${savedResponses.length} responses for subsection ${subsectionId}`);
+
+    res.json(savedResponses);
+  } catch (error) {
+    console.error('Error submitting responses:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 

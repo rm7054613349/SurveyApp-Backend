@@ -1,24 +1,13 @@
+
 const mongoose = require('mongoose');
 
 const responseSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-  },
-  surveyId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Survey',
-    required: true,
-  },
-  answer: {
-    type: String,
-    default: '',
-  },
-  fileUrl: {
-    type: String,
-    default: '',
-  },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  survey: { type: mongoose.Schema.Types.ObjectId, ref: 'Survey', required: true },
+  subsection: { type: mongoose.Schema.Types.ObjectId, ref: 'Subsection', required: true },
+  answer: { type: String, required: true },
+  score: { type: Number, default: 0 },
+  badge: { type: String }
 });
 
 module.exports = mongoose.model('Response', responseSchema);

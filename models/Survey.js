@@ -1,8 +1,9 @@
+
 const mongoose = require('mongoose');
 
 const surveySchema = new mongoose.Schema({
   question: { type: String, required: true },
-  options: [{ type: String }],
+  options: [{ type: String }], // Removed required: true for array elements
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   sectionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Section', required: true },
   subsectionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subsection', required: true },
