@@ -220,6 +220,9 @@ router.get('/badges/:userId', authMiddleware, async (req, res) => {
 //   }
 // });
 
+
+
+
 router.get('/subsection/:subsectionId', authMiddleware, async (req, res) => {
   try {
     const responses = await Response.find({ subsection: req.params.subsectionId })
@@ -247,6 +250,9 @@ router.get('/subsection/:subsectionId', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+
+
 
 router.post('/submit/:subsectionId', authMiddleware, async (req, res) => {
   try {
@@ -295,6 +301,8 @@ router.post('/submit/:subsectionId', authMiddleware, async (req, res) => {
   }
 });
 
+
+
 // Get all responses (Admin only)
 router.get('/', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
   try {
@@ -313,6 +321,8 @@ router.get('/', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+
 
 // Get my responses
 router.get('/my-responses', authMiddleware, async (req, res) => {
@@ -333,9 +343,179 @@ router.get('/my-responses', authMiddleware, async (req, res) => {
   }
 });
 
+
+
+
+
 // Send report by user, section, and subsection
+// router.post('/report-by-user', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
+//   const { userId, sectionId, subsectionId, date } = req.body;
+//   try {
+//     if (!userId) {
+//       return res.status(400).json({ message: 'User ID is required' });
+//     }
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({ message: 'User not found' });
+//     }
+//     let query = { user: userId };
+//     if (sectionId) query['survey.section'] = sectionId;
+//     if (subsectionId) query['survey.subsection'] = subsectionId;
+//     if (date) {
+//       const start = new Date(date);
+//       const end = new Date(start);
+//       end.setDate(end.getDate() + 1);
+//       query.createdAt = { $gte: start, $lt: end };
+//     }
+
+//     const responses = await Response.find(query)
+//       .populate({
+//         path: 'survey',
+//         populate: [
+//           { path: 'category', select: 'name' },
+//           { path: 'section', select: 'name' },
+//           { path: 'subsection', select: 'name' },
+//         ],
+//       });
+
+//     if (!responses.length) {
+//       return res.status(404).json({ message: 'No responses found' });
+//     }
+
+//     const groupedResponses = responses.reduce((acc, response) => {
+//       const sectionName = response.survey.section?.name || 'Uncategorized';
+//       const subsectionName = response.survey.subsection?.name || 'Uncategorized';
+//       const categoryName = response.survey.category?.name || 'Uncategorized';
+
+//       if (!acc[sectionName]) acc[sectionName] = {};
+//       if (!acc[sectionName][subsectionName]) acc[sectionName][subsectionName] = {};
+//       if (!acc[sectionName][subsectionName][categoryName]) {
+//         acc[sectionName][subsectionName][categoryName] = {
+//           score: 0,
+//           total: 0,
+//           responses: [],
+//         };
+//       }
+
+//       acc[sectionName][subsectionName][categoryName].responses.push({
+//         question: response.survey.question,
+//         answer: response.answer || response.fileUrl || 'N/A',
+//         score: response.score ?? 0,
+//         questionType: response.survey.questionType,
+//         correctOption: response.survey.correctOption || 'N/A',
+//       });
+//       acc[sectionName][subsectionName][categoryName].score += response.score ?? 0;
+//       acc[sectionName][subsectionName][categoryName].total += response.survey.maxScore;
+//       return acc;
+//     }, {});
+
+//     const totalScore = Object.values(groupedResponses).reduce((sum, sections) => {
+//       return sum + Object.values(sections).reduce((subSum, subsections) => {
+//         return subSum + Object.values(subsections).reduce((catSum, cat) => catSum + cat.score, 0);
+//       }, 0);
+//     }, 0);
+
+//     const totalPossible = Object.values(groupedResponses).reduce((sum, sections) => {
+//       return sum + Object.values(sections).reduce((subSum, subsections) => {
+//         return subSum + Object.values(subsections).reduce((catSum, cat) => catSum + cat.total, 0);
+//       }, 0);
+//     }, 0);
+
+//     const percentage = totalPossible > 0 ? ((totalScore / totalPossible) * 100).toFixed(2) : 0;
+
+//     const htmlContent = `
+//       <html>
+//         <head>
+//           <style>
+//             body { font-family: 'Inter', sans-serif; color: #333; background-color: #f4f4f4; padding: 20px; margin: 0; }
+//             .container { max-width: 800px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+//             h1 { color: #2563eb; text-align: center; font-size: 28px; margin-bottom: 20px; }
+//             .summary-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+//             .summary-card h2 { font-size: 24px; font-weight: 800; color: #1f2937; text-align: center; margin-bottom: 24px; }
+//             .summary-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; }
+//             .summary-item.blue { background-color: #dbeafe; }
+//             .summary-item.green { background-color: #dcfce7; }
+//             .summary-item.purple { background-color: #f3e8ff; }
+//             .summary-item .label { font-size: 18px; color: #374151; }
+//             .summary-item .value { font-size: 18px; font-weight: 700; }
+//             .summary-item.blue .value { color: #2563eb; }
+//             .summary-item.green .value { color: #16a34a; }
+//             .summary-item.purple .value { color: #9333ea; }
+//             h3 { color: #16a34a; font-size: 20px; margin-top: 20px; margin-bottom: 10px; }
+//             h4 { color: #2563eb; font-size: 18px; margin-top: 15px; margin-bottom: 8px; }
+//             table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+//             th, td { border: 1px solid #e5e7eb; padding: 10px; text-align: left; font-size: 14px; }
+//             th { background-color: #2563eb; color: #ffffff; font-weight: bold; }
+//             td { background-color: #f9fafb; }
+//             .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #6b7280; }
+//           </style>
+//         </head>
+//         <body>
+//           <div class="container">
+//             <h1>Survey Report for ${user.email}</h1>
+//             <div class="summary-card">
+//               <h2>Your Performance</h2>
+//               <div class="summary-item blue">
+//                 <span class="label">Gained Marks:</span>
+//                 <span class="value"> ${totalScore}</span>
+//               </div>
+//               <div class="summary-item green">
+//                 <span class="label">Total Marks:</span>
+//                 <span class="value"> ${totalPossible}</span>
+//               </div>
+//               <div class="summary-item purple">
+//                 <span class="label">Percentage:</span>
+//                 <span class="value"> ${percentage}%</span>
+//               </div>
+//             </div>
+//             ${Object.entries(groupedResponses).map(([section, subsections]) => `
+//               <h3>Section: ${section}</h3>
+//               ${Object.entries(subsections).map(([subsection, categories]) => `
+//                 <h4>Subsection: ${subsection}</h4>
+//                 ${Object.entries(categories).map(([category, data]) => `
+//                   <p>Category: ${category}</p>
+//                   <p>Score: ${data.score} / ${data.total}</p>
+//                   <table>
+//                     <thead>
+//                       <tr>
+//                         <th>Question</th>
+//                         <th>Answer</th>
+//                         <th>Score</th>
+//                         <th>Correct Answer</th>
+//                       </tr>
+//                     </thead>
+//                     <tbody>
+//                       ${data.responses.map(resp => `
+//                         <tr>
+//                           <td>${resp.question}</td>
+//                           <td>${resp.answer}</td>
+//                           <td>${resp.score}</td>
+//                           <td>${resp.questionType === 'multiple-choice' ? resp.correctOption : 'N/A'}</td>
+//                         </tr>
+//                       `).join('')}
+//                     </tbody>
+//                   </table>
+//                 `).join('')}
+//               `).join('')}
+//             `).join('')}
+//             <div class="footer">
+//               <p>Generated by Assessment | Thank you for your participation!</p>
+//             </div>
+//           </div>
+//         </body>
+//       </html>
+//     `;
+//     await sendEmail(user.email, 'Your Survey Report', null, htmlContent);
+//     res.json({ message: 'Report sent successfully' });
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
+
 router.post('/report-by-user', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
   const { userId, sectionId, subsectionId, date } = req.body;
+  console.log('Request body:', req.body); // Debug log
   try {
     if (!userId) {
       return res.status(400).json({ message: 'User ID is required' });
@@ -494,9 +674,18 @@ router.post('/report-by-user', authMiddleware, roleMiddleware(['admin']), async 
     await sendEmail(user.email, 'Your Survey Report', null, htmlContent);
     res.json({ message: 'Report sent successfully' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Error in report-by-user:', err.message); // Debug log
+    res.status(500).json({ message: err.message || 'Server error' });
   }
 });
+
+
+
+
+
+
+
+
 
 // Get report data for ShowReport
 router.get('/report-data', authMiddleware, roleMiddleware(['admin']), async (req, res) => {

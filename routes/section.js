@@ -15,6 +15,8 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
+
+
 // Create a new section (Admin only)
 router.post('/', authMiddleware, roleMiddleware('admin'), async (req, res) => {
   const { name } = req.body;

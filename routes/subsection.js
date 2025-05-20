@@ -14,6 +14,8 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
+
+
 // Create a new subsection (Admin only)
 router.post('/', authMiddleware, roleMiddleware('admin'), async (req, res) => {
   const { name, sectionId } = req.body;
