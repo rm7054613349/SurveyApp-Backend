@@ -25,6 +25,15 @@ mongoose.connect(process.env.MONGO_URI)
     process.exit(1);
   });
 
+
+
+  // Request logging middleware
+app.use((req, res, next) => {
+  console.log(`Request received: ${req.method} ${req.originalUrl} at ${new Date().toISOString()}`); // Debug log
+  console.log(`Request headers:`, req.headers); // Debug log
+  next();
+});
+
 // Configurable upload directory
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 

@@ -33,33 +33,6 @@ router.post('/signup', async (req, res) => {
 });
 
 // // Login
-// router.post('/login', async (req, res) => {
-//   const { email, password, role } = req.body;
-//   try {
-//     if (!email || !password || !role) {
-//       return res.status(400).json({ message: 'All fields are required' });
-//     }
-//     const user = await User.findOne({ email });
-//     if (!user || user.role !== role) {
-//       return res.status(400).json({ message: 'Invalid credentials' });
-//     }
-//     const isMatch = await user.matchPassword(password);
-//     if (!isMatch) {
-//       return res.status(400).json({ message: 'Invalid credentials' });
-//     }
-//     const token = jwt.sign(
-//       { id: user._id, role: user.role, email: user.email },
-//       process.env.JWT_SECRET,
-//       { expiresIn: '1d' }
-//     );
-//     res.json({ token, id: user._id, role: user.role, email: user.email });
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// });
-
-
-
 router.post('/login', async (req, res) => {
   const { email, password, role } = req.body;
   try {
@@ -84,6 +57,36 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+
+
+
+
+
+// router.post('/login', async (req, res) => {
+//   const { email, password, role } = req.body;
+//   try {
+//     if (!email || !password || !role) {
+//       return res.status(400).json({ message: 'All fields are required' });
+//     }
+//     const user = await User.findOne({ email });
+//     if (!user || user.role !== role) {
+//       return res.status(400).json({ message: 'Invalid credentials' });
+//     }
+//     const isMatch = await user.matchPassword(password);
+//     if (!isMatch) {
+//       return res.status(400).json({ message: 'Invalid credentials' });
+//     }
+//     const token = jwt.sign(
+//       { id: user._id, role: user.role, email: user.email },
+//       process.env.JWT_SECRET,
+//       { expiresIn: '1d' }
+//     );
+//     res.json({ token, id: user._id, role: user.role, email: user.email });
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// });
 
 // Get all users (Admin only)
 router.get('/users', authMiddleware, roleMiddleware('admin'), async (req, res) => {
