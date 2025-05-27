@@ -9,6 +9,8 @@ const responseRoutes = require('./routes/response');
 const categoryRoutes = require('./routes/category');
 const sectionRoutes = require('./routes/section');
 const subsectionRoutes = require('./routes/subsection');
+const adminRoutes=require('./routes/adminRoutes')
+const employeeRoutes=require('./routes/employeeRoutes')
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -59,6 +61,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+
+//for Announcement
+app.use('/api/admin', adminRoutes);
+app.use('/api/employee', employeeRoutes);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/survey', surveyRoutes);
 app.use('/api/response', responseRoutes);
