@@ -11,6 +11,8 @@ const sectionRoutes = require('./routes/section');
 const subsectionRoutes = require('./routes/subsection');
 const adminRoutes=require('./routes/adminRoutes')
 const employeeRoutes=require('./routes/employeeRoutes')
+const employeeEvent=require('./routes/eventEmployee')
+const adminEvent=require('./routes/eventAdmin')
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -65,6 +67,16 @@ app.use(express.urlencoded({ extended: true }));
 //for Announcement
 app.use('/api/admin', adminRoutes);
 app.use('/api/employee', employeeRoutes);
+
+
+
+//for Event 
+app.use('/api/adminevent', adminEvent);
+app.use('/api/employeeevent', employeeEvent);
+
+
+
+
 
 app.use('/api/auth', authRoutes);
 app.use('/api/survey', surveyRoutes);
