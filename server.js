@@ -18,6 +18,7 @@ const path = require('path');
 const fs = require('fs');
 const mime = require('mime-types');
 
+
 dotenv.config();
 const app = express();
 
@@ -62,7 +63,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use('/uploads', express.static('uploads'));
+
 // Routes
+
+
+//for Documents Center
+app.use('/api/documentsections', require('./routes/intranet/sectionRoutes'));
+app.use('/api/documentsubsections', require('./routes/intranet/subsectionRoutes'));
+app.use('/api/documents', require('./routes/intranet/documentRoutes'));
+
+
+
 
 //for Announcement
 app.use('/api/admin', adminRoutes);
